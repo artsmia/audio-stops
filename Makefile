@@ -5,7 +5,7 @@ stops.csv: collection_audio_view.csv
 			csvfix lower -f 4 > stops.csv
 
 stops.json: stops.csv
-	csvjson stops.csv | jq '.' > stops.json
+	csvjson stops.csv | jq 'map({(.object_id): .}) | add' > stops.json
 
 install:
 	pip install csvkit
