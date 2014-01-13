@@ -7,6 +7,9 @@ stops.csv: collection_audio_view.csv
 stops.json: stops.csv
 	csvjson stops.csv | jq 'map({(.object_id): .}) | add' > stops.json
 
+stops.min.json: stops.json
+	jq -c '.' < stops.json > stops.min.json
+
 install:
 	pip install csvkit
 	brew install csv-fix jq
