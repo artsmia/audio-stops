@@ -1,3 +1,4 @@
+SHELL := bash
 # `collection_audio_view.csv` is dumped from the latin1 db
 
 default: stops.min.json audio-stops.min.json
@@ -8,7 +9,8 @@ stops.csv: collection_audio_view.csv
 			csvfix order -f 1:2,4,3,5:10 > stops.csv
 
 stops.json: stops.csv
-	csvjson stops.csv | jq 'map({(.object_id): .}) | add' > stops.json
+	jq 'map({(.object_id): .}) | add' backfilled.json <(csvjson stops.csv) \
+	> stops.json
 
 audio-stops.json: stops.csv
 	csvjson stops.csv | jq 'map({(.audio_stop_number): .}) | add' > audio-stops.json
@@ -32,3 +34,12 @@ redis:
 			while read stop_id object_id file title; do \
 			echo redis-cli sadd objects:$$object_id:audio $$file | sed 's/"//g' | sh; \
 			done
+
+# run audio stops without an associated object through elasticsearch by title
+# to see if we can match them with an artwork or artist.
+backfill_object_ids:
+	csvjson stops.csv | jq -c -r 'map(select(.object_id == ""))[]' | while read json; do \
+		title=$$(jq -r '.title' <<<$$json); \
+		ids=$$(curl --silent "search.artsmia.org/artist:\"$$title\"" | jq -r '.hits.hits | map(._id)[]' | tr '\n' ' '); \
+		jq --arg ids "$$ids" '. + {object_id: $$ids}' <<<$$json; \
+	done | jq -s '.' > backfilled.json
