@@ -43,3 +43,14 @@ backfill_object_ids:
 		ids=$$(curl --silent "search.artsmia.org/artist:\"$$title\"" | jq -r '.hits.hits | map(._id)[]' | tr '\n' ' '); \
 		jq --arg ids "$$ids" '. + {object_id: $$ids}' <<<$$json; \
 	done | jq -s '.' > backfilled.json
+
+join_stops_with_intern_work:
+	csvcut -C 7,8,9,10 stops.csv > stops-clean.csv
+	csvcut -c1,7,8,9 intern-inventory.csv > intern-shortened.csv
+	csvjoin -c "audio_stop_number,Audio guide Number" --outer stops-clean.csv intern-shortened.csv | csvcut -C7 > joined.csv
+	csvcut -c3 joined.csv \
+		| grep -v '^""$$' \
+		| sed 's|\(.*.mp3\)|\1,https://audio-tours.s3.amazonaws.com/\1|; s/^media_url/media_url,URL/' \
+		> media_urls.csv
+	csvjoin -c "media_url,media_url" --outer joined.csv media_urls.csv | csvcut -C10 | sponge joined.csv; \
+	rm stops-clean.csv intern-shortened.csv media_urls.csv
