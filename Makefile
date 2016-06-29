@@ -48,9 +48,10 @@ join_stops_with_intern_work:
 	csvcut -C 7,8,9,10 stops.csv > stops-clean.csv
 	csvcut -c1,7,8,9 intern-inventory.csv > intern-shortened.csv
 	csvjoin -c "audio_stop_number,Audio guide Number" --outer stops-clean.csv intern-shortened.csv | csvcut -C7 > joined.csv
-	csvcut -c3 joined.csv \
-		| grep -v '^""$$' \
-		| sed 's|\(.*.mp3\)|\1,https://audio-tours.s3.amazonaws.com/\1|; s/^media_url/media_url,URL/' \
-		> media_urls.csv
-	csvjoin -c "media_url,media_url" --outer joined.csv media_urls.csv | csvcut -C10 | sponge joined.csv; \
-	rm stops-clean.csv intern-shortened.csv media_urls.csv
+	csvcut -c2,3 joined.csv \
+		| grep -v '^,$$' \
+		| perl -pe 's|^(\d+)?,(.*.mp3)|\1,\2,https://audio-tours.s3.amazonaws.com/\2,http://collections.artsmia.org/art/\1|' \
+		| sed 's/^object_id/object_id,media_url,audio file URL, collections URL/' \
+		> with_urls.csv
+	csvjoin -c "media_url,media_url" --outer joined.csv with_urls.csv | csvcut -C10 | sponge joined.csv; \
+	rm stops-clean.csv intern-shortened.csv with_urls.csv
